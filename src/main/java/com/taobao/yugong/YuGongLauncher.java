@@ -14,7 +14,7 @@ import com.taobao.yugong.controller.YuGongController;
 public class YuGongLauncher {
 
     private static final String CLASSPATH_URL_PREFIX = "classpath:";
-    private static final Logger logger               = LoggerFactory.getLogger(YuGongLauncher.class);
+    private static final Logger logger = LoggerFactory.getLogger(YuGongLauncher.class);
 
     public static void main(String[] args) throws Throwable {
         try {
@@ -41,7 +41,7 @@ public class YuGongLauncher {
                             controller.stop();
                         } catch (Throwable e) {
                             logger.warn("## something goes wrong when stopping YuGong:\n{}",
-                                ExceptionUtils.getFullStackTrace(e));
+                                    ExceptionUtils.getFullStackTrace(e));
                         } finally {
                             logger.info("## YuGong is down.");
                         }
@@ -59,7 +59,7 @@ public class YuGongLauncher {
             logger.info("## YuGong is down.");
         } catch (Throwable e) {
             logger.error("## Something goes wrong when starting up the YuGong:\n{}",
-                ExceptionUtils.getFullStackTrace(e));
+                    ExceptionUtils.getFullStackTrace(e));
             System.exit(0);
         }
     }
