@@ -7,18 +7,94 @@ import com.taobao.yugong.common.utils.YuGongToStringStyle;
 
 /**
  * 代表一个字段的信息
- * 
+ *
  * @author agapple 2013-9-3 下午2:46:32
  * @since 3.0.0
  */
 public class ColumnMeta {
 
     private String name;
-    private int    type;
+    private int type;
 
-    public ColumnMeta(String columnName, int columnType){
+    private String comments;
+    private String columnName;
+    private int columnSize;
+    private int colScale;
+    private String columnType;
+    private String defaultValue;
+    private String nullValue;
+
+    public String getDefaultValue() {
+        return defaultValue;
+    }
+
+    public void setDefaultValue(String defaultValue) {
+        this.defaultValue = defaultValue;
+    }
+
+    public String getNullValue() {
+        return nullValue;
+    }
+
+    public void setNullValue(String nullValue) {
+        this.nullValue = nullValue;
+    }
+
+    public String getColumnType() {
+        return columnType;
+    }
+
+    public void setColumnType(String columnType) {
+        this.columnType = columnType;
+    }
+
+    public String getComments() {
+        return comments;
+    }
+
+    public void setComments(String comments) {
+        this.comments = comments;
+    }
+
+    public String getColumnName() {
+        return columnName;
+    }
+
+    public void setColumnName(String columnName) {
+        this.columnName = columnName;
+    }
+
+    public int getColumnSize() {
+        return columnSize;
+    }
+
+    public void setColumnSize(int columnSize) {
+        this.columnSize = columnSize;
+    }
+
+    public int getColScale() {
+        return colScale;
+    }
+
+    public void setColScale(int colScale) {
+        this.colScale = colScale;
+    }
+
+    public ColumnMeta(String columnName, int columnType) {
         this.name = StringUtils.upperCase(columnName);// 统一为大写
         this.type = columnType;
+    }
+
+    public ColumnMeta(String name, int type, String comments, String columnName, int columnSize, int colScale, String columnType, String defaultValue, String nullValue) {
+        this.name = name;
+        this.type = type;
+        this.comments = comments;
+        this.columnName = columnName;
+        this.columnSize = columnSize;
+        this.colScale = colScale;
+        this.columnType = columnType;
+        this.defaultValue = defaultValue;
+        this.nullValue = nullValue;
     }
 
     public String getName() {

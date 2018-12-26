@@ -1,12 +1,14 @@
 package com.taobao.yugong.controller;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
+import com.taobao.yugong.converter.TableConverter;
 import org.apache.commons.lang.exception.ExceptionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -43,43 +45,45 @@ import com.taobao.yugong.translator.core.OracleIncreamentDataTranslator;
 
 /**
  * 代表一个同步迁移任务
- * 
+ *
  * @author agapple 2013-9-17 下午3:21:01
  */
 public class YuGongInstance extends AbstractYuGongLifeCycle {
 
-    private final Logger         logger          = LoggerFactory.getLogger(YuGongInstance.class);
-    private YuGongContext        context;
-    private RecordExtractor      extractor;
-    private RecordApplier        applier;
-    private DataTranslator       translator;
-    private RecordPositioner     positioner;
-    private AlarmService         alarmService;
-    private String               alarmReceiver;
-    private TableController      tableController;
-    private ProgressTracer       progressTracer;
-    private StatAggregation      statAggregation;
-    private DbType               targetDbType;
+    private final Logger logger = LoggerFactory.getLogger(YuGongInstance.class);
+    private YuGongContext context;
+    private RecordExtractor extractor;
+    private RecordApplier applier;
+    private TableConverter converter;
+
+    private DataTranslator translator;
+    private RecordPositioner positioner;
+    private AlarmService alarmService;
+    private String alarmReceiver;
+    private TableController tableController;
+    private ProgressTracer progressTracer;
+    private StatAggregation statAggregation;
+    private DbType targetDbType;
 
     private List<DataTranslator> coreTranslators = Lists.newArrayList();
-    private Thread               worker          = null;
-    private volatile boolean     extractorDump   = true;
-    private volatile boolean     applierDump     = true;
-    private CountDownLatch       mutex           = new CountDownLatch(1);
-    private YuGongException      exception       = null;
-    private String               tableShitKey;
-    private int                  retryTimes      = 1;
-    private int                  retryInterval;
-    private int                  noUpdateThresold;
-    private int                  noUpdateTimes   = 0;
+    private Thread worker = null;
+    private volatile boolean extractorDump = true;
+    private volatile boolean applierDump = true;
+    private CountDownLatch mutex = new CountDownLatch(1);
+    private YuGongException exception = null;
+    private String tableShitKey;
+    private int retryTimes = 1;
+    private int retryInterval;
+    private int noUpdateThresold;
+    private int noUpdateTimes = 0;
 
     // translator
-    private boolean              concurrent      = true;
-    private int                  threadSize      = 5;
-    private ThreadPoolExecutor   executor;
-    private String               executorName;
+    private boolean concurrent = true;
+    private int threadSize = 5;
+    private ThreadPoolExecutor executor;
+    private String executorName;
 
-    public YuGongInstance(YuGongContext context){
+    public YuGongInstance(YuGongContext context) {
         this.context = context;
         this.tableShitKey = context.getTableMeta().getFullName();
     }
@@ -94,12 +98,12 @@ public class YuGongInstance extends AbstractYuGongLifeCycle {
             executorName = this.getClass().getSimpleName() + "-" + context.getTableMeta().getFullName();
             if (executor == null) {
                 executor = new ThreadPoolExecutor(threadSize,
-                    threadSize,
-                    60,
-                    TimeUnit.SECONDS,
-                    new ArrayBlockingQueue(threadSize * 2),
-                    new NamedThreadFactory(executorName),
-                    new ThreadPoolExecutor.CallerRunsPolicy());
+                        threadSize,
+                        60,
+                        TimeUnit.SECONDS,
+                        new ArrayBlockingQueue(threadSize * 2),
+                        new NamedThreadFactory(executorName),
+                        new ThreadPoolExecutor.CallerRunsPolicy());
             }
 
             // 后续可改进为按类型识别添加
@@ -114,6 +118,10 @@ public class YuGongInstance extends AbstractYuGongLifeCycle {
 
             Position lastPosition = positioner.getLatest();
             context.setLastPosition(lastPosition);
+
+            if (Objects.nonNull(converter) && !converter.isStart()) {
+                converter.start();
+            }
 
             if (!extractor.isStart()) {
                 extractor.start();
@@ -161,11 +169,11 @@ public class YuGongInstance extends AbstractYuGongLifeCycle {
                         } else if (ExceptionUtils.getRootCause(exception) instanceof InterruptedException) {
                             progressTracer.update(context.getTableMeta().getFullName(), ProgressStatus.FAILED);
                             logger.info("table[{}] is interrpt ,current status:{} !", context.getTableMeta()
-                                .getFullName(), extractor.status());
+                                    .getFullName(), extractor.status());
                         } else {
                             progressTracer.update(context.getTableMeta().getFullName(), ProgressStatus.FAILED);
                             logger.info("table[{}] is error , current status:{} !", context.getTableMeta()
-                                .getFullName(), extractor.status());
+                                    .getFullName(), extractor.status());
                         }
                     } finally {
                         tableController.release(YuGongInstance.this);
@@ -194,9 +202,9 @@ public class YuGongInstance extends AbstractYuGongLifeCycle {
 
                             // 判断是否记录日志
                             RecordDumper.dumpExtractorInfo(batchId.incrementAndGet(),
-                                ackRecords,
-                                lastPosition,
-                                extractorDump);
+                                    ackRecords,
+                                    lastPosition,
+                                    extractorDump);
 
                             // 是否有系统的translator处理
                             if (YuGongUtils.isNotEmpty(coreTranslators)) {
@@ -282,9 +290,9 @@ public class YuGongInstance extends AbstractYuGongLifeCycle {
                                 template = new ExecutorTemplate(executor);
                             }
                             records = ((BackTableDataTranslator) translator).translator(context.getSourceDs(),
-                                context.getTargetDs(),
-                                records,
-                                template);
+                                    context.getTargetDs(),
+                                    records,
+                                    template);
                         } else {
                             records = translator.translator(records);
                         }
@@ -296,8 +304,8 @@ public class YuGongInstance extends AbstractYuGongLifeCycle {
                 private boolean processException(Throwable e, int i) {
                     if (!(ExceptionUtils.getRootCause(e) instanceof InterruptedException)) {
                         logger.error("retry {} ,something error happened. caused by {}",
-                            (i + 1),
-                            ExceptionUtils.getFullStackTrace(e));
+                                (i + 1),
+                                ExceptionUtils.getFullStackTrace(e));
                         try {
                             alarmService.sendAlarm(new AlarmMessage(ExceptionUtils.getFullStackTrace(e), alarmReceiver));
                         } catch (Throwable e1) {
@@ -325,9 +333,9 @@ public class YuGongInstance extends AbstractYuGongLifeCycle {
             worker.setName(this.getClass().getSimpleName() + "-" + context.getTableMeta().getFullName());
             worker.start();
 
-            logger.info("table[{}] start successful. extractor:{} , applier:{}, translator:{}", new Object[] {
+            logger.info("table[{}] start successful. extractor:{} , applier:{}, translator:{}", new Object[]{
                     context.getTableMeta().getFullName(), extractor.getClass().getName(), applier.getClass().getName(),
-                    translator != null ? translator.getClass().getName() : "NULL" });
+                    translator != null ? translator.getClass().getName() : "NULL"});
         } catch (InterruptedException e) {
             progressTracer.update(context.getTableMeta().getFullName(), ProgressStatus.FAILED);
             exception = new YuGongException(e);
@@ -339,15 +347,15 @@ public class YuGongInstance extends AbstractYuGongLifeCycle {
             exception = new YuGongException(e);
             mutex.countDown();
             logger.error("table[{}] start failed caused by {}",
-                context.getTableMeta().getFullName(),
-                ExceptionUtils.getFullStackTrace(e));
+                    context.getTableMeta().getFullName(),
+                    ExceptionUtils.getFullStackTrace(e));
             tableController.release(this); // 释放下
         }
     }
 
     /**
      * 等待instance处理完成
-     * 
+     *
      * @throws InterruptedException
      */
     public void waitForDone() throws InterruptedException, YuGongException {
@@ -378,6 +386,10 @@ public class YuGongInstance extends AbstractYuGongLifeCycle {
 
         if (applier.isStart()) {
             applier.stop();
+        }
+
+        if (Objects.nonNull(converter) && converter.isStart()) {
+            converter.stop();
         }
 
         if (positioner.isStart()) {
@@ -492,6 +504,14 @@ public class YuGongInstance extends AbstractYuGongLifeCycle {
 
     public void setExecutor(ThreadPoolExecutor executor) {
         this.executor = executor;
+    }
+
+    public TableConverter getConverter() {
+        return converter;
+    }
+
+    public void setConverter(TableConverter converter) {
+        this.converter = converter;
     }
 
 }

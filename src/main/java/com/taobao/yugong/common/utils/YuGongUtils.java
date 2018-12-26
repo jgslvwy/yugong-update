@@ -5,6 +5,7 @@ import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.SQLException;
 import java.sql.Types;
+import java.text.MessageFormat;
 import java.util.Collection;
 import java.util.List;
 
@@ -20,6 +21,9 @@ import com.taobao.yugong.common.model.DbType;
 import com.taobao.yugong.exception.YuGongException;
 
 public class YuGongUtils {
+    private static final String MYSQL_TABLE_EXISTS = "SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA={0} AND TABLE_NAME={1}";
+
+    private static final String ORACLE_TABLE_EXISTS = "SELECT COUNT(*) FROM ALL_TABLES WHERE OWNER = {0} AND TABLE_NAME = {1}";
 
     public static boolean isEmpty(Collection collection) {
         return collection == null || collection.size() == 0;
@@ -31,13 +35,13 @@ public class YuGongUtils {
 
     /**
      * 返回字段名字的数组
-     * 
+     *
      * @param columns
      * @return
      */
     public static String[] getColumnNameArray(List<ColumnMeta> columns) {
         if (columns == null || columns.size() == 0) {
-            return new String[] {};
+            return new String[]{};
         }
 
         String[] result = new String[columns.size()];
@@ -51,7 +55,7 @@ public class YuGongUtils {
 
     /**
      * 根据DataSource判断一下数据库类型
-     * 
+     *
      * @param dataSource
      * @return
      */
@@ -84,7 +88,7 @@ public class YuGongUtils {
      * Convert a column name with underscores to the corresponding class name
      * using "camel case". A name like "customer_number" would match a
      * "CustomerNumber" class name.
-     * 
+     *
      * @param name the column name to be converted
      * @return the name using "camel case"
      */
@@ -121,7 +125,7 @@ public class YuGongUtils {
 
     public static boolean isClobType(int sqlType) {
         if (sqlType == Types.CLOB || sqlType == Types.LONGVARCHAR || sqlType == Types.NCLOB
-            || sqlType == Types.LONGNVARCHAR) {
+                || sqlType == Types.LONGNVARCHAR) {
             return true;
         } else {
             return false;
@@ -130,7 +134,7 @@ public class YuGongUtils {
 
     public static boolean isBlobType(int sqlType) {
         if (sqlType == Types.BLOB || sqlType == Types.BINARY || sqlType == Types.VARBINARY
-            || sqlType == Types.LONGVARBINARY) {
+                || sqlType == Types.LONGVARBINARY) {
             return true;
         } else {
             return false;
@@ -139,7 +143,7 @@ public class YuGongUtils {
 
     public static boolean isNumber(int sqlType) {
         if (sqlType == Types.TINYINT || sqlType == Types.SMALLINT || sqlType == Types.INTEGER
-            || sqlType == Types.BIGINT || sqlType == Types.NUMERIC || sqlType == Types.DECIMAL) {
+                || sqlType == Types.BIGINT || sqlType == Types.NUMERIC || sqlType == Types.DECIMAL) {
             return true;
         } else {
             return false;
@@ -183,4 +187,17 @@ public class YuGongUtils {
 
         return source;
     }
+
+    public static boolean validateTableNameExist(final DataSource dataSource, final String schemaName, final String tableName) {
+        DbType dbType = judgeDbType(dataSource);
+        JdbcTemplate jdbcTemplate = new JdbcTemplate(dataSource);
+        String sql = dbType.isOracle() ? ORACLE_TABLE_EXISTS : (dbType.isMysql() ? MYSQL_TABLE_EXISTS : "");
+        sql = MessageFormat.format(sql, schemaName, tableName);
+        if (jdbcTemplate.queryForInt(sql) > 0)
+            return true;
+        else
+            return false;
+
+    }
+
 }

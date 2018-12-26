@@ -7,15 +7,12 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.sql.Types;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 import javax.sql.DataSource;
 
+import oracle.jdbc.driver.OracleConnection;
+import oracle.jdbc.driver.T4CXAConnection;
 import org.apache.commons.lang.StringUtils;
 import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.ConnectionCallback;
@@ -28,19 +25,19 @@ import com.taobao.yugong.exception.YuGongException;
 
 /**
  * 基于mysql的table meta获取
- * 
+ *
  * @author agapple 2013-9-9 下午2:45:30
  * @since 3.0.0
  */
 public class TableMetaGenerator {
 
-    private static final String mlogQuerySql       = "select master,log_table from all_mview_logs where master = ?";
+    private static final String mlogQuerySql = "select master,log_table from all_mview_logs where master = ?";
     private static final String mlogSchemaQuerySql = "select master,log_table from all_mview_logs where master = ? and log_owner = ?";
-    private static final String queryShardKey      = "show partitions from ?";
+    private static final String queryShardKey = "show partitions from ?";
 
     /**
      * 获取对应的table meta信息，精确匹配
-     * 
+     *
      * @param dataSource
      * @param schemaName
      * @param tableName
@@ -56,7 +53,7 @@ public class TableMetaGenerator {
                 String tName = getIdentifierName(tableName, metaData);
 
                 ResultSet rs = null;
-                rs = metaData.getTables(sName, sName, tName, new String[] { "TABLE" });
+                rs = metaData.getTables(sName, sName, tName, new String[]{"TABLE"});
                 Table table = null;
                 while (rs.next()) {
                     String catlog = rs.getString(1);
@@ -65,7 +62,7 @@ public class TableMetaGenerator {
                     String type = rs.getString(4);
 
                     if ((sName == null || LikeUtil.isMatch(sName, catlog) || LikeUtil.isMatch(sName, schema))
-                        && LikeUtil.isMatch(tName, name)) {
+                            && LikeUtil.isMatch(tName, name)) {
                         table = new Table(type, StringUtils.isEmpty(catlog) ? schema : catlog, name);
                         break;
                     }
@@ -83,7 +80,7 @@ public class TableMetaGenerator {
                     String schema = rs.getString(2);
                     String name = rs.getString(3);
                     if ((sName == null || LikeUtil.isMatch(sName, catlog) || LikeUtil.isMatch(sName, schema))
-                        && LikeUtil.isMatch(tName, name)) {
+                            && LikeUtil.isMatch(tName, name)) {
                         String columnName = rs.getString(4); // COLUMN_NAME
                         int columnType = rs.getInt(5);
                         String typeName = rs.getString(6);
@@ -101,7 +98,7 @@ public class TableMetaGenerator {
                     String schema = rs.getString(2);
                     String name = rs.getString(3);
                     if ((sName == null || LikeUtil.isMatch(sName, catlog) || LikeUtil.isMatch(sName, schema))
-                        && LikeUtil.isMatch(tName, name)) {
+                            && LikeUtil.isMatch(tName, name)) {
                         primaryKeys.add(StringUtils.upperCase(rs.getString(4)));
                     }
                 }
@@ -115,7 +112,7 @@ public class TableMetaGenerator {
                         String schema = rs.getString(2);
                         String name = rs.getString(3);
                         if ((sName == null || LikeUtil.isMatch(sName, catlog) || LikeUtil.isMatch(sName, schema))
-                            && LikeUtil.isMatch(tName, name)) {
+                                && LikeUtil.isMatch(tName, name)) {
                             String indexName = StringUtils.upperCase(rs.getString(6));
                             if ("PRIMARY".equals(indexName)) {
                                 continue;
@@ -155,7 +152,7 @@ public class TableMetaGenerator {
 
     /**
      * 查询所有的表，不返回表中的字段
-     * 
+     *
      * @param dataSource
      * @return
      */
@@ -173,7 +170,7 @@ public class TableMetaGenerator {
                 ResultSet rs = null;
                 Table table = null;
                 if (StringUtils.startsWithIgnoreCase(databaseName, "oracle") && StringUtils.isEmpty(schemaName)
-                    && StringUtils.isEmpty(tableName)) {
+                        && StringUtils.isEmpty(tableName)) {
                     // 针对oracle，只查询用户表，忽略系统表
                     Statement stmt = conn.createStatement();
                     rs = stmt.executeQuery("SELECT SYS_CONTEXT('USERENV', 'CURRENT_SCHEMA') AS SCHEMA_NAME , TABLE_NAME FROM USER_TABLES T , USER_USERS U WHERE U.USERNAME = SYS_CONTEXT('USERENV', 'CURRENT_SCHEMA')");
@@ -190,7 +187,7 @@ public class TableMetaGenerator {
                     stmt.close();
                     return result;
                 } else {
-                    rs = metaData.getTables(sName, sName, tName, new String[] { "TABLE" });
+                    rs = metaData.getTables(sName, sName, tName, new String[]{"TABLE"});
                     while (rs.next()) {
                         String catlog = rs.getString(1);
                         String schema = rs.getString(2);
@@ -240,11 +237,11 @@ public class TableMetaGenerator {
     /**
      * <pre>
      * 常见的物化视图创建语句：
-     * 1. CREATE MATERIALIZED VIEW LOG ON test_all_target with primary key; 
-     * 
+     * 1. CREATE MATERIALIZED VIEW LOG ON test_all_target with primary key;
+     *
      * 本方法，主要提取生成物化视图的表名
      * </pre>
-     * 
+     *
      * @param dataSource
      * @param schemaName
      * @param tableName
@@ -274,29 +271,37 @@ public class TableMetaGenerator {
     }
 
     public static void buildColumns(DataSource dataSource, final Table table) {
-        JdbcTemplate jdbcTemplate = new JdbcTemplate(dataSource);
-        jdbcTemplate.execute(new ConnectionCallback() {
 
+        JdbcTemplate jdbcTemplate = new JdbcTemplate(dataSource);
+
+        jdbcTemplate.execute(new ConnectionCallback() {
             public Object doInConnection(Connection conn) throws SQLException, DataAccessException {
+                //add by jgs remarksReporting为true
+                if (conn instanceof OracleConnection)
+                    ((OracleConnection) conn).setRemarksReporting(true);
                 DatabaseMetaData metaData = conn.getMetaData();
                 ResultSet rs;
                 // 查询所有字段
                 rs = metaData.getColumns(table.getSchema(), table.getSchema(), table.getName(), null);
                 List<ColumnMeta> columnList = new ArrayList<ColumnMeta>();
-
                 while (rs.next()) {
                     String catlog = rs.getString(1);
                     String schema = rs.getString(2);
                     String name = rs.getString(3);
                     if ((table.getSchema() == null || LikeUtil.isMatch(table.getSchema(), catlog) || LikeUtil.isMatch(table.getSchema(),
-                        schema))
-                        && LikeUtil.isMatch(table.getName(), name)) {
+                            schema))
+                            && LikeUtil.isMatch(table.getName(), name)) {
                         String columnName = rs.getString(4); // COLUMN_NAME
                         int columnType = rs.getInt(5);
                         String typeName = rs.getString(6);
+                        String comments = rs.getString("remarks");
+                        String nullValue = Objects.equals(rs.getString("is_nullable"), "NO") ? "NOT NULL" : "NULL";
+                        String defaultValue = rs.getString(14);
+                        int columnSize = rs.getInt("column_size");
+                        int colScale = rs.getInt("decimal_digits");
                         columnType = convertSqlType(columnType, typeName);
                         ColumnMeta col = new ColumnMeta(columnName, columnType);
-                        columnList.add(col);
+                        columnList.add(new ColumnMeta(name, columnType, comments, columnName, columnSize, colScale, typeName, defaultValue, nullValue));
                     }
                 }
 
@@ -308,13 +313,13 @@ public class TableMetaGenerator {
                     String schema = rs.getString(2);
                     String name = rs.getString(3);
                     if ((table.getSchema() == null || StringUtils.equalsIgnoreCase(catlog, table.getSchema()) || StringUtils.equalsIgnoreCase(schema,
-                        table.getSchema()))
-                        && StringUtils.equalsIgnoreCase(name, table.getName())) {
+                            table.getSchema()))
+                            && StringUtils.equalsIgnoreCase(name, table.getName())) {
                         primaryKeys.add(rs.getString(4));
                     }
                 }
-
-                Set<ColumnMeta> columns = new HashSet<ColumnMeta>();
+                //add by jgs必须有序
+                Set<ColumnMeta> columns = new LinkedHashSet<ColumnMeta>();
                 Set<ColumnMeta> pks = new HashSet<ColumnMeta>();
                 for (ColumnMeta columnMeta : columnList) {
                     if (primaryKeys.contains(columnMeta.getName())) {
@@ -335,7 +340,7 @@ public class TableMetaGenerator {
 
     /**
      * 获取DRDS下表的拆分字段, 返回格式为 id,name
-     * 
+     *
      * @param dataSource
      * @param schemaName
      * @param tableName
@@ -376,12 +381,12 @@ public class TableMetaGenerator {
 
     /**
      * 根据{@linkplain DatabaseMetaData}获取正确的表名
-     * 
+     *
      * <pre>
      * metaData中的storesUpperCaseIdentifiers，storesUpperCaseQuotedIdentifiers，storesLowerCaseIdentifiers,
      * storesLowerCaseQuotedIdentifiers,storesMixedCaseIdentifiers,storesMixedCaseQuotedIdentifiers
      * </pre>
-     * 
+     *
      * @param name
      * @param metaData
      * @return
@@ -409,7 +414,7 @@ public class TableMetaGenerator {
 
         if (columnType == Types.OTHER) {
             if (StringUtils.equalsIgnoreCase(typeName, "NVARCHAR")
-                || StringUtils.equalsIgnoreCase(typeName, "NVARCHAR2")) {
+                    || StringUtils.equalsIgnoreCase(typeName, "NVARCHAR2")) {
                 columnType = Types.VARCHAR;
             }
 
@@ -422,6 +427,36 @@ public class TableMetaGenerator {
             }
         }
         return columnType;
+    }
+
+
+    /**
+     * add index name and column name and is unique
+     */
+    public static List<IndexMeta> getTableIndexByTableName(final DataSource dataSource,
+                                                           final String schemaName,
+                                                           final String tableName) {
+        JdbcTemplate jdbcTemplate = new JdbcTemplate(dataSource);
+        return (List<IndexMeta>) jdbcTemplate.execute(new ConnectionCallback() {
+
+            public Object doInConnection(Connection conn) throws SQLException, DataAccessException {
+                DatabaseMetaData metaData = conn.getMetaData();
+                String sName = getIdentifierName(schemaName, metaData);
+                String tName = getIdentifierName(tableName, metaData);
+
+                ResultSet rs = metaData.getIndexInfo(sName, sName, tName, false, true);
+                List<IndexMeta> indexes = new ArrayList<IndexMeta>();
+                while (rs.next()) {
+                    String columnName = rs.getString(9);
+                    String indexName = rs.getString(6);
+                    String uniquences = rs.getString(4);
+                    if (columnName != null && indexName != null) {
+                        indexes.add(new IndexMeta(indexName, columnName, StringUtils.equals(uniquences, "0") ? true : false));
+                    }
+                }
+                return indexes;
+            }
+        });
     }
 
 }

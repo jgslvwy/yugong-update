@@ -12,7 +12,7 @@ public class BaseDbTest {
     public DataSourceConfig getOracleConfig() {
         DataSourceConfig config = new DataSourceConfig();
         config.setUsername("test");
-        config.setPassword("test");
+        config.setPassword("1234");
         config.setUrl("jdbc:oracle:thin:@127.0.0.1:1521:test");
         config.setEncode("UTF-8");
         config.setType(DbType.ORACLE);

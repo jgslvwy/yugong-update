@@ -25,20 +25,22 @@ public class TableMetaGeneratorTest extends BaseDbTest {
         String schemaName = "test";
         String tableName = "test_all_target";
         DataSource oracle = dataSourceFactory.getDataSource(getOracleConfig());
-        Table table = TableMetaGenerator.getTableMeta(oracle, schemaName, tableName);
-        System.out.println(table);
-
-        Map<String, String> index = TableMetaGenerator.getTableIndex(oracle, schemaName, tableName);
-        System.out.println(index);
-
-        String mlogName = TableMetaGenerator.getMLogTableName(oracle, schemaName, tableName);
-        System.out.println(mlogName);
-
-        Table mtable = TableMetaGenerator.getTableMeta(oracle, schemaName, mlogName);
-        System.out.println(mtable);
-
-        Map<String, String> mindex = TableMetaGenerator.getTableIndex(oracle, schemaName, mlogName);
-        System.out.println(mindex);
+//        Table table = TableMetaGenerator.getTableMeta(oracle, schemaName, tableName);
+//        System.out.println(table);
+//
+//        Map<String, String> index = TableMetaGenerator.getTableIndex(oracle, schemaName, tableName);
+//        System.out.println(index);
+//
+//        String mlogName = TableMetaGenerator.getMLogTableName(oracle, schemaName, tableName);
+//        System.out.println(mlogName);
+//
+//        Table mtable = TableMetaGenerator.getTableMeta(oracle, schemaName, mlogName);
+//        System.out.println(mtable);
+//
+//        Map<String, String> mindex = TableMetaGenerator.getTableIndex(oracle, schemaName, mlogName);
+//        System.out.println(mindex);
+        Table table = new Table("ORACLE","TEST_DATALOAD","T_CI_USER");
+        TableMetaGenerator.buildColumns(oracle, table);
         dataSourceFactory.stop();
     }
 

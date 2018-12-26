@@ -14,6 +14,9 @@ import java.util.concurrent.TimeUnit;
 
 import javax.sql.DataSource;
 
+import com.taobao.yugong.common.db.meta.IndexMeta;
+import com.taobao.yugong.converter.OracleFullTableConverter;
+import com.taobao.yugong.converter.TableConverter;
 import org.apache.commons.configuration.Configuration;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang.BooleanUtils;
@@ -65,31 +68,31 @@ import com.taobao.yugong.translator.DataTranslator;
 
 /**
  * 整个迁移流程调度控制
- * 
+ *
  * @author agapple 2013-9-17 下午3:15:29
  */
 public class YuGongController extends AbstractYuGongLifeCycle {
 
-    private DataSourceFactory        dataSourceFactory = new DataSourceFactory();
-    private JdkCompiler              compiler          = new JdkCompiler();
-    private Configuration            config;
+    private DataSourceFactory dataSourceFactory = new DataSourceFactory();
+    private JdkCompiler compiler = new JdkCompiler();
+    private Configuration config;
 
-    private RunMode                  runMode;
-    private YuGongContext            globalContext;
-    private DbType                   sourceDbType      = DbType.ORACLE;
-    private DbType                   targetDbType      = DbType.MYSQL;
-    private File                     translatorDir;
-    private AlarmService             alarmService;
+    private RunMode runMode;
+    private YuGongContext globalContext;
+    private DbType sourceDbType = DbType.ORACLE;
+    private DbType targetDbType = DbType.MYSQL;
+    private File translatorDir;
+    private AlarmService alarmService;
 
-    private TableController          tableController;
-    private ProgressTracer           progressTracer;
-    private List<YuGongInstance>     instances         = Lists.newArrayList();
+    private TableController tableController;
+    private ProgressTracer progressTracer;
+    private List<YuGongInstance> instances = Lists.newArrayList();
     private ScheduledExecutorService schedule;
     // 全局的工作线程池
-    private ThreadPoolExecutor       extractorExecutor = null;
-    private ThreadPoolExecutor       applierExecutor   = null;
+    private ThreadPoolExecutor extractorExecutor = null;
+    private ThreadPoolExecutor applierExecutor = null;
 
-    public YuGongController(Configuration config){
+    public YuGongController(Configuration config) {
         this.config = config;
     }
 
@@ -143,23 +146,23 @@ public class YuGongController extends AbstractYuGongLifeCycle {
         if (useExtractorExecutor) {
             int extractorSize = config.getInt("yugong.extractor.concurrent.size", 5);
             extractorExecutor = new ThreadPoolExecutor(extractorSize,
-                extractorSize,
-                60,
-                TimeUnit.SECONDS,
-                new ArrayBlockingQueue<Runnable>(extractorSize * 2),
-                new NamedThreadFactory("Global-Extractor"),
-                new ThreadPoolExecutor.CallerRunsPolicy());
+                    extractorSize,
+                    60,
+                    TimeUnit.SECONDS,
+                    new ArrayBlockingQueue<Runnable>(extractorSize * 2),
+                    new NamedThreadFactory("Global-Extractor"),
+                    new ThreadPoolExecutor.CallerRunsPolicy());
         }
 
         if (useApplierExecutor) {
             int applierSize = config.getInt("yugong.applier.concurrent.size", 5);
             applierExecutor = new ThreadPoolExecutor(applierSize,
-                applierSize,
-                60,
-                TimeUnit.SECONDS,
-                new ArrayBlockingQueue<Runnable>(applierSize * 2),
-                new NamedThreadFactory("Global-Applier"),
-                new ThreadPoolExecutor.CallerRunsPolicy());
+                    applierSize,
+                    60,
+                    TimeUnit.SECONDS,
+                    new ArrayBlockingQueue<Runnable>(applierSize * 2),
+                    new NamedThreadFactory("Global-Applier"),
+                    new ThreadPoolExecutor.CallerRunsPolicy());
         }
         for (TableHolder tableHolder : tableMetas) {
             YuGongContext context = buildContext(globalContext, tableHolder.table, tableHolder.ignoreSchema);
@@ -178,6 +181,11 @@ public class YuGongController extends AbstractYuGongLifeCycle {
             instance.setApplier(applier);
             instance.setTranslator(translator);
             instance.setPositioner(positioner);
+            //add by jgs启动时，增加判断
+            if (YuGongUtils.validateTableNameExist(context.getTargetDs(), tableHolder.table.getSchema(), tableHolder.table.getName())) {
+                TableConverter tableConverter = chooseConverter(tableHolder, context, runMode, positioner);
+                instance.setConverter(tableConverter);
+            }
             instance.setTableController(tableController);
             instance.setAlarmService(alarmService);
             instance.setAlarmReceiver(alarmReceiver);
@@ -266,6 +274,24 @@ public class YuGongController extends AbstractYuGongLifeCycle {
         MDC.remove(YuGongConstants.MDC_TABLE_SHIT_KEY);
     }
 
+
+    private TableConverter chooseConverter(TableHolder tableHolder, YuGongContext context, RunMode runMode,
+                                           RecordPositioner positioner) {
+        Table table = tableHolder.table;
+        if (sourceDbType == DbType.ORACLE) {
+            if (runMode == RunMode.FULL || runMode == RunMode.MARK || runMode == RunMode.ALL) {
+                OracleFullTableConverter oracleFullTableConverter = new OracleFullTableConverter(context);
+                oracleFullTableConverter.setTable(table);
+                return oracleFullTableConverter;
+            } else {
+                throw new YuGongException(table.getSchema() + "." + table.getName() + "not exists");
+            }
+        } else {
+            throw new YuGongException("unsupport " + sourceDbType);
+        }
+    }
+
+
     private RecordExtractor chooseExtractor(TableHolder tableHolder, YuGongContext context, RunMode runMode,
                                             RecordPositioner positioner) {
         boolean once = config.getBoolean("yugong.extractor.once", false);
@@ -277,7 +303,7 @@ public class YuGongController extends AbstractYuGongLifeCycle {
                 String extractSql = config.getString("yugong.extractor.sql." + tablename);
                 if (StringUtils.isEmpty(extractSql)) {
                     extractSql = config.getString("yugong.extractor.sql." + fullName,
-                        config.getString("yugong.extractor.sql"));
+                            config.getString("yugong.extractor.sql"));
                 }
 
                 // 优先找tableName
@@ -291,7 +317,7 @@ public class YuGongController extends AbstractYuGongLifeCycle {
                 }
                 boolean forceFull = !tableOnce && StringUtils.isNotEmpty(extractSql);
                 if (forceFull
-                    || (isOnlyPkIsNumber(tableHolder.table) && !once && !tableOnce && StringUtils.isEmpty(extractSql))) {
+                        || (isOnlyPkIsNumber(tableHolder.table) && !once && !tableOnce && StringUtils.isEmpty(extractSql))) {
                     OracleFullRecordExtractor recordExtractor = new OracleFullRecordExtractor(context);
                     recordExtractor.setExtractSql(extractSql);
                     recordExtractor.setTracer(progressTracer);
@@ -315,17 +341,17 @@ public class YuGongController extends AbstractYuGongLifeCycle {
             } else {
                 // 不会有并发问题，所以共用一份context
                 AbstractRecordExtractor markExtractor = (AbstractRecordExtractor) chooseExtractor(tableHolder,
-                    context,
-                    RunMode.MARK,
-                    positioner);
+                        context,
+                        RunMode.MARK,
+                        positioner);
                 AbstractRecordExtractor fullExtractor = (AbstractRecordExtractor) chooseExtractor(tableHolder,
-                    context,
-                    RunMode.FULL,
-                    positioner);
+                        context,
+                        RunMode.FULL,
+                        positioner);
                 AbstractRecordExtractor incExtractor = (AbstractRecordExtractor) chooseExtractor(tableHolder,
-                    context,
-                    RunMode.INC,
-                    positioner);
+                        context,
+                        RunMode.INC,
+                        positioner);
                 fullExtractor.setTracer(progressTracer);
                 incExtractor.setTracer(progressTracer);
                 OracleAllRecordExtractor allExtractor = new OracleAllRecordExtractor(context);
@@ -504,13 +530,13 @@ public class YuGongController extends AbstractYuGongLifeCycle {
                     boolean ignoreSchema = false;
                     if (strs.length == 1) {
                         whiteTables = TableMetaGenerator.getTableMetasWithoutColumn(globalContext.getSourceDs(),
-                            null,
-                            strs[0]);
+                                null,
+                                strs[0]);
                         ignoreSchema = true;
                     } else if (strs.length == 2) {
                         whiteTables = TableMetaGenerator.getTableMetasWithoutColumn(globalContext.getSourceDs(),
-                            strs[0],
-                            strs[1]);
+                                strs[0],
+                                strs[1]);
                     } else {
                         throw new YuGongException("table[" + whiteTable + "] is not valid");
                     }
@@ -522,8 +548,11 @@ public class YuGongController extends AbstractYuGongLifeCycle {
                     for (Table table : whiteTables) {
                         // 根据实际表名处理一下
                         if (!isBlackTable(table.getName(), tableBlackList)
-                            && !isBlackTable(table.getFullName(), tableBlackList)) {
+                                && !isBlackTable(table.getFullName(), tableBlackList)) {
                             TableMetaGenerator.buildColumns(globalContext.getSourceDs(), table);
+                            //
+                            List<IndexMeta> indexMetas = TableMetaGenerator.getTableIndexByTableName(globalContext.getSourceDs(), table.getSchema(), table.getName());
+                            table.setIndexMetas(indexMetas);
                             // 构建一下拆分条件
                             DataTranslator translator = buildExtKeys(table, (String) obj, targetDbType);
                             TableHolder holder = new TableHolder(table);
@@ -540,7 +569,7 @@ public class YuGongController extends AbstractYuGongLifeCycle {
             List<Table> metas = TableMetaGenerator.getTableMetasWithoutColumn(globalContext.getSourceDs(), null, null);
             for (Table table : metas) {
                 if (!isBlackTable(table.getName(), tableBlackList)
-                    && !isBlackTable(table.getFullName(), tableBlackList)) {
+                        && !isBlackTable(table.getFullName(), tableBlackList)) {
                     TableMetaGenerator.buildColumns(globalContext.getSourceDs(), table);
                     // 构建一下拆分条件
                     DataTranslator translator = buildExtKeys(table, null, targetDbType);
@@ -694,7 +723,7 @@ public class YuGongController extends AbstractYuGongLifeCycle {
 
     /**
      * 从表白名单中得到shardKey
-     * 
+     *
      * @param tableName 带有shardkey的表, 例子 yugong_example_oracle#pk|name
      * @return
      */
@@ -725,13 +754,13 @@ public class YuGongController extends AbstractYuGongLifeCycle {
 
     private static class TableHolder {
 
-        public TableHolder(Table table){
+        public TableHolder(Table table) {
             this.table = table;
         }
 
-        Table          table;
-        boolean        ignoreSchema = false;
-        DataTranslator translator   = null;
+        Table table;
+        boolean ignoreSchema = false;
+        DataTranslator translator = null;
 
         @Override
         public int hashCode() {

@@ -10,32 +10,43 @@ import com.taobao.yugong.common.utils.YuGongToStringStyle;
 
 /**
  * 代表一张数据表
- * 
+ *
  * @author agapple 2013-9-3 下午2:51:56
  * @since 3.0.0
  */
 public class Table {
 
-    private String           type;
-    private String           schema;
-    private String           name;
+    private String type;
+    private String schema;
+    private String name;
     private List<ColumnMeta> primaryKeys = Lists.newArrayList();
-    private List<ColumnMeta> columns     = Lists.newArrayList();
-    // 增量必带的扩展字段,比如DRDS模式下的拆分键
-    private String           extKey;
+    private List<ColumnMeta> columns = Lists.newArrayList();
 
-    public Table(String type, String schema, String name){
+    //索引
+    private List<IndexMeta> indexMetas = Lists.newArrayList();
+    // 增量必带的扩展字段,比如DRDS模式下的拆分键
+    private String extKey;
+
+    public Table(String type, String schema, String name) {
         this.type = type;
         this.schema = schema;
         this.name = name;
     }
 
-    public Table(String type, String schema, String name, List<ColumnMeta> primaryKeys, List<ColumnMeta> columns){
+    public Table(String type, String schema, String name, List<ColumnMeta> primaryKeys, List<ColumnMeta> columns) {
         this.type = type;
         this.schema = schema;
         this.name = name;
         this.primaryKeys = primaryKeys;
         this.columns = columns;
+    }
+
+    public List<IndexMeta> getIndexMetas() {
+        return indexMetas;
+    }
+
+    public void setIndexMetas(List<IndexMeta> indexMetas) {
+        this.indexMetas = indexMetas;
     }
 
     public String getType() {
