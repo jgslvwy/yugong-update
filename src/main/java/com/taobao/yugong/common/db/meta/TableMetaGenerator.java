@@ -275,8 +275,6 @@ public class TableMetaGenerator {
         JdbcTemplate jdbcTemplate = new JdbcTemplate(dataSource);
         jdbcTemplate.execute(new ConnectionCallback() {
             public Object doInConnection(Connection conn) throws SQLException, DataAccessException {
-                //add by jgs remarksReporting为true
-//                conn.setClientInfo("remarksReporting", "true");
                 DatabaseMetaData metaData = conn.getMetaData();
                 ResultSet rs;
                 // 查询所有字段

@@ -32,7 +32,8 @@ public class TCiUserDataTranslator extends AbstractDataTranslator implements Dat
         // 4. 字段类型不同
         if (nameColumn != null) {
             nameColumn.getColumn().setType(Types.INTEGER);
-            nameColumn.setValue(ObjectUtils.toString(nameColumn.getValue()));
+            //add by jgs 坑
+            nameColumn.setValue(nameColumn.getValue());
         }
 
 //        // 5. 源库多一个字段

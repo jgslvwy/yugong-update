@@ -92,6 +92,7 @@ public class YuGongController extends AbstractYuGongLifeCycle {
     private ThreadPoolExecutor extractorExecutor = null;
     private ThreadPoolExecutor applierExecutor = null;
 
+
     public YuGongController(Configuration config) {
         this.config = config;
     }
@@ -182,7 +183,7 @@ public class YuGongController extends AbstractYuGongLifeCycle {
             instance.setTranslator(translator);
             instance.setPositioner(positioner);
             //add by jgs启动时，增加判断
-            if (!YuGongUtils.validateTableNameExist(context.getTargetDs(), context.getTableMeta(), tableHolder.table.getName())) {
+            if (!YuGongUtils.validateTableNameExist(context.getTargetDs(), context.getTargetSchemaName(), tableHolder.table.getName())) {
                 TableConverter tableConverter = chooseConverter(tableHolder, context, runMode, positioner);
                 instance.setConverter(tableConverter);
             }
@@ -457,6 +458,7 @@ public class YuGongController extends AbstractYuGongLifeCycle {
     private YuGongContext buildContext(YuGongContext globalContext, Table table, boolean ignoreSchema) {
         YuGongContext result = globalContext.cloneGlobalContext();
         result.setTableMeta(table);
+        result.setTargetSchemaName(config.getString("yugong.database.target.username"));
         if (ignoreSchema) {// 自动识别table是否为无shcema定义
             result.setIgnoreSchema(ignoreSchema);
         }

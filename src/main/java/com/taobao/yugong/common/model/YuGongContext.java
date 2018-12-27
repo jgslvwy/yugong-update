@@ -27,6 +27,15 @@ public class YuGongContext {
     private boolean    skipApplierException = false;  // 是否允许跳过applier异常
     private String     sourceEncoding       = "UTF-8";
     private String     targetEncoding       = "UTF-8";
+    private String      targetSchemaName      = "";
+
+    public void setTargetSchemaName(String targetSchemaName) {
+        this.targetSchemaName = targetSchemaName;
+    }
+
+    public String getTargetSchemaName() {
+        return targetSchemaName;
+    }
 
     public Position getLastPosition() {
         return lastPosition;

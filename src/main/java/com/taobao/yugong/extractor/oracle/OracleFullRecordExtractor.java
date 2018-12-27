@@ -4,6 +4,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.text.MessageFormat;
+import java.text.NumberFormat;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -28,6 +29,7 @@ import com.taobao.yugong.common.model.record.Record;
 import com.taobao.yugong.common.utils.YuGongUtils;
 import com.taobao.yugong.common.utils.thread.NamedThreadFactory;
 import com.taobao.yugong.exception.YuGongException;
+import org.springframework.util.NumberUtils;
 
 /**
  * oracle单数字主键的提取
@@ -101,11 +103,10 @@ public class OracleFullRecordExtractor extends AbstractOracleRecordExtractor {
             }
             position.setCurrentProgress(ProgressStatus.FULLING);
             //add by jgs 不知道为什么主键的type是 string,先简单这样处理
-            Object value = record.getPrimaryKeys().get(0).getValue();
-            if (value instanceof String) {
-                value = (String) value;
+            for (ColumnValue value : record.getPrimaryKeys()) {
+                logger.info("主键的字段名称:" + value.getColumn().getName() + "字段类型：" + value.getValue().getClass());
             }
-            position.setId((Number) value);// 更新一下id
+            position.setId((Number) record.getPrimaryKeys().get(0).getValue());// 更新一下id
             return position;
         }
 
