@@ -192,12 +192,13 @@ public class YuGongUtils {
         DbType dbType = judgeDbType(dataSource);
         JdbcTemplate jdbcTemplate = new JdbcTemplate(dataSource);
         String sql = dbType.isOracle() ? ORACLE_TABLE_EXISTS : (dbType.isMysql() ? MYSQL_TABLE_EXISTS : "");
-        sql = MessageFormat.format(sql, schemaName, tableName);
-        if (jdbcTemplate.queryForInt(sql) > 0)
-            return true;
-        else
-            return false;
-
+        sql = MessageFormat.format(sql, addQuotes(schemaName), addQuotes(tableName));
+        return (jdbcTemplate.queryForInt(sql) > 0);
     }
+
+    public static String addQuotes(String str) {
+        return "'" + str + "'";
+    }
+
 
 }

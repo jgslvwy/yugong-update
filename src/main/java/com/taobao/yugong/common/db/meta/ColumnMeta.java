@@ -17,7 +17,6 @@ public class ColumnMeta {
     private int type;
 
     private String comments;
-    private String columnName;
     private int columnSize;
     private int colScale;
     private String columnType;
@@ -56,14 +55,6 @@ public class ColumnMeta {
         this.comments = comments;
     }
 
-    public String getColumnName() {
-        return columnName;
-    }
-
-    public void setColumnName(String columnName) {
-        this.columnName = columnName;
-    }
-
     public int getColumnSize() {
         return columnSize;
     }
@@ -85,11 +76,10 @@ public class ColumnMeta {
         this.type = columnType;
     }
 
-    public ColumnMeta(String name, int type, String comments, String columnName, int columnSize, int colScale, String columnType, String defaultValue, String nullValue) {
+    public ColumnMeta(String name, int type, String comments, int columnSize, int colScale, String columnType, String defaultValue, String nullValue) {
         this.name = name;
         this.type = type;
         this.comments = comments;
-        this.columnName = columnName;
         this.columnSize = columnSize;
         this.colScale = colScale;
         this.columnType = columnType;

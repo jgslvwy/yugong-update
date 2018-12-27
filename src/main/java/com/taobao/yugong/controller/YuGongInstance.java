@@ -94,7 +94,9 @@ public class YuGongInstance extends AbstractYuGongLifeCycle {
 
         try {
             tableController.acquire();// 尝试获取
-
+            if (Objects.nonNull(converter) && !converter.isStart()) {
+                converter.start();
+            }
             executorName = this.getClass().getSimpleName() + "-" + context.getTableMeta().getFullName();
             if (executor == null) {
                 executor = new ThreadPoolExecutor(threadSize,
@@ -119,9 +121,6 @@ public class YuGongInstance extends AbstractYuGongLifeCycle {
             Position lastPosition = positioner.getLatest();
             context.setLastPosition(lastPosition);
 
-            if (Objects.nonNull(converter) && !converter.isStart()) {
-                converter.start();
-            }
 
             if (!extractor.isStart()) {
                 extractor.start();

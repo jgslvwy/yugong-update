@@ -182,7 +182,7 @@ public class YuGongController extends AbstractYuGongLifeCycle {
             instance.setTranslator(translator);
             instance.setPositioner(positioner);
             //add by jgs启动时，增加判断
-            if (YuGongUtils.validateTableNameExist(context.getTargetDs(), tableHolder.table.getSchema(), tableHolder.table.getName())) {
+            if (!YuGongUtils.validateTableNameExist(context.getTargetDs(), tableHolder.table.getSchema(), tableHolder.table.getName())) {
                 TableConverter tableConverter = chooseConverter(tableHolder, context, runMode, positioner);
                 instance.setConverter(tableConverter);
             }
@@ -494,8 +494,12 @@ public class YuGongController extends AbstractYuGongLifeCycle {
         String url = config.getString("yugong.database." + type + ".url");
         String encode = config.getString("yugong.database." + type + ".encode");
         String poolSize = config.getString("yugong.database." + type + ".poolSize");
-
+        //添加数据源库
         Properties properties = new Properties();
+        //add by jgs
+        if (dbType.isOracle()) {
+            properties.setProperty("remarksReporting", "true");
+        }
         if (poolSize != null) {
             properties.setProperty("maxActive", poolSize);
         } else {

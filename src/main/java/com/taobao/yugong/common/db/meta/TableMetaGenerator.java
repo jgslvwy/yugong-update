@@ -273,12 +273,10 @@ public class TableMetaGenerator {
     public static void buildColumns(DataSource dataSource, final Table table) {
 
         JdbcTemplate jdbcTemplate = new JdbcTemplate(dataSource);
-
         jdbcTemplate.execute(new ConnectionCallback() {
             public Object doInConnection(Connection conn) throws SQLException, DataAccessException {
                 //add by jgs remarksReporting为true
-                if (conn instanceof OracleConnection)
-                    ((OracleConnection) conn).setRemarksReporting(true);
+//                conn.setClientInfo("remarksReporting", "true");
                 DatabaseMetaData metaData = conn.getMetaData();
                 ResultSet rs;
                 // 查询所有字段
@@ -300,8 +298,7 @@ public class TableMetaGenerator {
                         int columnSize = rs.getInt("column_size");
                         int colScale = rs.getInt("decimal_digits");
                         columnType = convertSqlType(columnType, typeName);
-                        ColumnMeta col = new ColumnMeta(columnName, columnType);
-                        columnList.add(new ColumnMeta(name, columnType, comments, columnName, columnSize, colScale, typeName, defaultValue, nullValue));
+                        columnList.add(new ColumnMeta(columnName, columnType, comments, columnSize, colScale, typeName, defaultValue, nullValue));
                     }
                 }
 

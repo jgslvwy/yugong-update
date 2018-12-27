@@ -9,7 +9,7 @@ import java.sql.Types;
 public class TCiUserDataTranslator extends AbstractDataTranslator implements DataTranslator {
 
     public boolean translator(Record record) {
-        record.setTableName("T");
+        record.setTableName("T_CI_USER");
         //至此可知道源表为yugong_example_a，目标表为yugong_example_mysql
 
         // 2. 字段名字不同,
