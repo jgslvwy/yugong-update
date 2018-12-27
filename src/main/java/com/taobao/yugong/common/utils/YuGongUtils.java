@@ -188,11 +188,11 @@ public class YuGongUtils {
         return source;
     }
 
-    public static boolean validateTableNameExist(final DataSource dataSource, final String schemaName, final String tableName) {
+    public static boolean validateTableNameExist(final DataSource dataSource, final String tagSchemaName, final String tableName) {
         DbType dbType = judgeDbType(dataSource);
         JdbcTemplate jdbcTemplate = new JdbcTemplate(dataSource);
         String sql = dbType.isOracle() ? ORACLE_TABLE_EXISTS : (dbType.isMysql() ? MYSQL_TABLE_EXISTS : "");
-        sql = MessageFormat.format(sql, addQuotes(schemaName), addQuotes(tableName));
+        sql = MessageFormat.format(sql, addQuotes(tagSchemaName), addQuotes(tableName));
         return (jdbcTemplate.queryForInt(sql) > 0);
     }
 

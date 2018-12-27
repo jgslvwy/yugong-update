@@ -31,22 +31,22 @@ import com.taobao.yugong.exception.YuGongException;
 
 /**
  * oracle单数字主键的提取
- * 
+ *
  * @author agapple 2013-9-12 下午4:49:25
  */
 public class OracleFullRecordExtractor extends AbstractOracleRecordExtractor {
 
     // private static final String FORMAT =
     // "select /*+index(t {0})*/ {1} from {2}.{3} t where {4} > ? and rownum <= ? order by {4} asc";
-    private static final String         FORMAT          = "select * from (select {0} from {1}.{2} t where {3} > ? order by {3} asc) where rownum <= ?";
-    private static final String         MIN_PK_FORMAT   = "select min({0}) from {1}.{2}";
-    private YuGongContext               context;
+    private static final String FORMAT = "select * from (select {0} from {1}.{2} t where {3} > ? order by {3} asc) where rownum <= ?";
+    private static final String MIN_PK_FORMAT = "select min({0}) from {1}.{2}";
+    private YuGongContext context;
     private LinkedBlockingQueue<Record> queue;
-    private String                      extractSql;
-    private Thread                      extractorThread = null;
-    private String                      getMinPkSql;
+    private String extractSql;
+    private Thread extractorThread = null;
+    private String getMinPkSql;
 
-    public OracleFullRecordExtractor(YuGongContext context){
+    public OracleFullRecordExtractor(YuGongContext context) {
         this.context = context;
     }
 
@@ -62,17 +62,17 @@ public class OracleFullRecordExtractor extends AbstractOracleRecordExtractor {
             // TableMetaGenerator.getTableIndex(context.getSourceDs(),
             // schemaName, tableName);
             String colStr = SqlTemplates.COMMON.makeColumn(context.getTableMeta().getColumnsWithPrimary());
-            this.extractSql = new MessageFormat(FORMAT).format(new Object[] { colStr, schemaName, tableName, primaryKey });
+            this.extractSql = new MessageFormat(FORMAT).format(new Object[]{colStr, schemaName, tableName, primaryKey});
             // logger.info("table : {} \n\t extract sql : {}",
             // context.getTableMeta().getFullName(), extractSql);
         }
 
         if (getMinPkSql == null && StringUtils.isNotBlank(primaryKey)) {
-            this.getMinPkSql = new MessageFormat(MIN_PK_FORMAT).format(new Object[] { primaryKey, schemaName, tableName });
+            this.getMinPkSql = new MessageFormat(MIN_PK_FORMAT).format(new Object[]{primaryKey, schemaName, tableName});
         }
 
         extractorThread = new NamedThreadFactory(this.getClass().getSimpleName() + "-"
-                                                 + context.getTableMeta().getFullName()).newThread(new ContinueExtractor(context));
+                + context.getTableMeta().getFullName()).newThread(new ContinueExtractor(context));
         extractorThread.start();
 
         queue = new LinkedBlockingQueue<Record>(context.getOnceCrawNum() * 2);
@@ -100,7 +100,12 @@ public class OracleFullRecordExtractor extends AbstractOracleRecordExtractor {
                 position = new IdPosition();
             }
             position.setCurrentProgress(ProgressStatus.FULLING);
-            position.setId((Number) record.getPrimaryKeys().get(0).getValue());// 更新一下id
+            //add by jgs 不知道为什么主键的type是 string,先简单这样处理
+            Object value = record.getPrimaryKeys().get(0).getValue();
+            if (value instanceof String) {
+                value = (String) value;
+            }
+            position.setId((Number) value);// 更新一下id
             return position;
         }
 
@@ -134,11 +139,11 @@ public class OracleFullRecordExtractor extends AbstractOracleRecordExtractor {
 
     public class ContinueExtractor extends AbstractYuGongLifeCycle implements Runnable {
 
-        private JdbcTemplate     jdbcTemplate;
-        private Object           id      = 0L;
+        private JdbcTemplate jdbcTemplate;
+        private Object id = 0L;
         private volatile boolean running = true;
 
-        public ContinueExtractor(YuGongContext context){
+        public ContinueExtractor(YuGongContext context) {
             jdbcTemplate = new JdbcTemplate(context.getSourceDs());
 
             Position position = context.getLastPosition();
@@ -222,9 +227,9 @@ public class OracleFullRecordExtractor extends AbstractOracleRecordExtractor {
                             }
 
                             Record re = new Record(context.getTableMeta().getSchema(),
-                                context.getTableMeta().getName(),
-                                pks,
-                                cms);
+                                    context.getTableMeta().getName(),
+                                    pks,
+                                    cms);
 
                             result.add(re);
                         }

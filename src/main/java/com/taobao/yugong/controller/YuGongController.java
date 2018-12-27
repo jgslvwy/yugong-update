@@ -182,7 +182,7 @@ public class YuGongController extends AbstractYuGongLifeCycle {
             instance.setTranslator(translator);
             instance.setPositioner(positioner);
             //add by jgs启动时，增加判断
-            if (!YuGongUtils.validateTableNameExist(context.getTargetDs(), tableHolder.table.getSchema(), tableHolder.table.getName())) {
+            if (!YuGongUtils.validateTableNameExist(context.getTargetDs(), context.getTableMeta(), tableHolder.table.getName())) {
                 TableConverter tableConverter = chooseConverter(tableHolder, context, runMode, positioner);
                 instance.setConverter(tableConverter);
             }

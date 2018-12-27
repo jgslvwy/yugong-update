@@ -289,16 +289,18 @@ public class TableMetaGenerator {
                     if ((table.getSchema() == null || LikeUtil.isMatch(table.getSchema(), catlog) || LikeUtil.isMatch(table.getSchema(),
                             schema))
                             && LikeUtil.isMatch(table.getName(), name)) {
+                        //坑！！！！！！！！放前边就解决问题
+                        String columnDef = rs.getString("column_def");
                         String columnName = rs.getString(4); // COLUMN_NAME
                         int columnType = rs.getInt(5);
                         String typeName = rs.getString(6);
                         String comments = rs.getString("remarks");
                         String nullValue = Objects.equals(rs.getString("is_nullable"), "NO") ? "NOT NULL" : "NULL";
-                        String defaultValue = rs.getString(14);
+//
                         int columnSize = rs.getInt("column_size");
                         int colScale = rs.getInt("decimal_digits");
                         columnType = convertSqlType(columnType, typeName);
-                        columnList.add(new ColumnMeta(columnName, columnType, comments, columnSize, colScale, typeName, defaultValue, nullValue));
+                        columnList.add(new ColumnMeta(columnName, columnType, comments, columnSize, colScale, typeName, columnDef, nullValue));
                     }
                 }
 
@@ -448,7 +450,8 @@ public class TableMetaGenerator {
                     String indexName = rs.getString(6);
                     String uniquences = rs.getString(4);
                     if (columnName != null && indexName != null) {
-                        indexes.add(new IndexMeta(indexName, columnName, StringUtils.equals(uniquences, "0") ? true : false));
+                        if (!columnName.equalsIgnoreCase("SEQUENCE_NO"))
+                            indexes.add(new IndexMeta(indexName, columnName, StringUtils.equals(uniquences, "0") ? false : true));
                     }
                 }
                 return indexes;

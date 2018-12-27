@@ -14,7 +14,7 @@ public class TCiUserDataTranslator extends AbstractDataTranslator implements Dat
 
         // 2. 字段名字不同,
         //源表的name字段,目标表中叫display_name
-        ColumnValue nameColumn = record.getColumnByName("sequence_no");
+        ColumnValue nameColumn = record.getColumnByName("SEQUENCE_NO");
         if (nameColumn != null) {
             nameColumn.getColumn().setName("ID");
         }
